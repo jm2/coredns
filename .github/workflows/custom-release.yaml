@@ -1,0 +1,43 @@
+name: Custom Binary Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build Windows amd64
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: 0
+        run: |
+          # Generate plugin files before building
+          make coredns
+          # Rename output for Windows
+          mv coredns coredns.exe
+          # Package into a zip archive
+          zip coredns_${{ github.ref_name }}_windows_amd64.zip coredns.exe
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: coredns_${{ github.ref_name }}_windows_amd64.zip
+          name: CoreDNS ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
